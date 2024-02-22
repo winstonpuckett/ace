@@ -7,6 +7,7 @@ A tiny stack-based, forth-like language.
 Demonstrating everything in the language:
 ```ace
 :helloMessage "Hello, "
+
 :user $USER
 
 :printTwo `echo +1 +2`
