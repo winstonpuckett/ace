@@ -1,0 +1,9 @@
+command: ./ace
+tests:
+  - name: echoing writes to stdout
+    expectations:
+      exitCode: 0
+      performance: 10
+      output: "Hi, Bob!\n"
+    args:
+      - echo.ace
