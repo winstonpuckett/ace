@@ -18,11 +18,11 @@ type String struct {
 }
 
 func (s String) Run() {
-	myStack.Push(s.value)
+	myStack.Push(s)
 }
 
 func (s String) String() string {
-	return fmt.Sprintf("String: %s", string(s.value))
+	return string(s.value)
 }
 
 type Script struct {
@@ -41,7 +41,7 @@ func (s Script) Run() {
 			}
 
 			for stackNumber > len(stackValues) {
-				stackValues = append(stackValues, myStack.Pop().(string))
+				stackValues = append(stackValues, myStack.Pop().(Definition).String())
 			}
 
 			stringBuilder.WriteString(stackValues[stackNumber-1])
@@ -51,10 +51,21 @@ func (s Script) Run() {
 	}
 
 	cmd := exec.Command("sh", "-c", stringBuilder.String())
-
-	output, _ := cmd.Output()
-	fmt.Print(string(output))
 	stringBuilder.Reset()
+
+	output, err := cmd.Output()
+
+	if len(output) > 0 {
+		s := string(output)
+		myStack.Push(String{value: s})
+		os.Stdout.WriteString(s)
+	}
+
+	if err != nil && len(err.Error()) > 0 {
+		s := err.Error()
+		myStack.Push(String{value: s})
+		os.Stderr.WriteString(s)
+	}
 }
 
 func (s Script) String() string {
@@ -67,6 +78,28 @@ func (s Script) String() string {
 	}
 
 	return fmt.Sprintf("Script: %s", strings.Join(parts, ", "))
+}
+
+type Part interface {
+	Flatten(context *[]string) string
+}
+
+type StringPart struct{ value string }
+
+func (p StringPart) Flatten(context *[]string) string {
+	return p.value
+}
+
+type MappedPart struct {
+	stackDepth int
+	references []string
+}
+
+func (p MappedPart) Flatten(context *[]Definition) string {
+	for p.stackDepth > len(*context) {
+		context = append(*context, myStack.Pop().(Definition).String())
+	}
+	return p.value
 }
 
 type Word struct {
@@ -119,4 +152,30 @@ func (r Reference) Run() {
 
 func (r Reference) String() string {
 	return fmt.Sprintf("Reference: %s", string(r.Name))
+}
+
+type Map struct {
+	Definitions map[string][]Definition
+}
+
+func (m Map) Run() {
+	myStack.Push(m)
+}
+
+func (m Map) String() string {
+	// TODO: Replace with stringbuilder
+	s := "{"
+	for key, values := range m.Definitions {
+		s += key
+		s += ":"
+
+		for _, value := range values {
+			s += " "
+			s += value.String()
+		}
+
+		s += ","
+	}
+	s += "}"
+	return fmt.Sprintf("Map: %s", s)
 }

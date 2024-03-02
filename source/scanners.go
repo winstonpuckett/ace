@@ -1,16 +1,22 @@
 package main
 
+import "unicode"
+
 type Scanner interface {
 	Current() rune
 	Move() rune
 	Peek() rune
 	PeekTwo() rune
 	Recale() rune // looks back
+	SkipWhitespace() rune
 }
 
 type StringScanner struct {
 	source   []byte
 	position int
+
+	Row    int
+	Column int
 }
 
 func (s *StringScanner) Current() rune {
@@ -20,6 +26,7 @@ func (s *StringScanner) Current() rune {
 
 	return rune(s.source[s.position])
 }
+
 func (s *StringScanner) Move() rune {
 	s.position += 1
 
@@ -27,7 +34,11 @@ func (s *StringScanner) Move() rune {
 		return -1
 	}
 
-	return rune(s.source[s.position])
+	next := rune(s.source[s.position])
+
+	setRowColumn(next, s)
+
+	return next
 }
 func (s *StringScanner) Peek() rune {
 	if s.position+1 >= len(s.source) {
@@ -46,4 +57,19 @@ func (s *StringScanner) Recale() rune {
 		return -1
 	}
 	return rune(s.source[s.position-1])
+}
+func (s *StringScanner) SkipWhitespace() rune {
+	for !(s.Current() == -1) && unicode.IsSpace(s.Current()) {
+		s.Move()
+	}
+	return s.Current()
+}
+
+func setRowColumn(next rune, s *StringScanner) {
+	if next == '\n' {
+		s.Row = 0
+		s.Column += 1
+	} else {
+		s.Row += 1
+	}
 }

@@ -9,6 +9,8 @@ var reservedCharacters = map[rune]bool{
 	':': true,
 	'"': true,
 	'`': true,
+	'{': true,
+	'}': true,
 }
 
 func ParseAndExecute() {
@@ -17,31 +19,30 @@ func ParseAndExecute() {
 		if next == nil {
 			return
 		}
+		print(next.String())
 
 		next.Run()
 	}
 }
 
 func ParseInner() Definition {
-	nextChar := scanner.Current()
-
-	for unicode.IsSpace(nextChar) && !(nextChar == -1) {
-		nextChar = scanner.Move()
-	}
+	nextChar := scanner.SkipWhitespace()
 
 	if nextChar == -1 {
 		return nil
 	}
 
 	switch {
-	case ':' == nextChar:
+	case nextChar == ':':
 		return ParseWord()
-	case '"' == nextChar:
+	case nextChar == '"':
 		return ParseString()
-	case '`' == nextChar:
+	case nextChar == '`':
 		return ParseInvoke()
-	case '$' == nextChar:
+	case nextChar == '$':
 		return ParseEnvironmentVariable()
+	case nextChar == '{':
+		return ParseMap()
 	default:
 		return ParseReference()
 	}
@@ -114,6 +115,11 @@ func ParseInvoke() Definition {
 				scanner.Move()
 			}
 
+			for scanner.Current() == '.' {
+				reference := ParseReference()
+				stringBuilder.WriteString(reference.String())
+			}
+
 			parts = append(parts, stringBuilder.String())
 			stringBuilder.Reset()
 
@@ -141,8 +147,7 @@ func ParseInvoke() Definition {
 func ParseEnvironmentVariable() Definition {
 	scanner.Move()
 
-	for scanner.Current() != -1 && !unicode.IsSpace(scanner.Current()) {
-		// TODO: Only allow non-control characters
+	for scanner.Current() != -1 && !unicode.IsSpace(scanner.Current()) && !reservedCharacters[scanner.Current()] {
 		stringBuilder.WriteRune(scanner.Current())
 		scanner.Move()
 	}
@@ -157,7 +162,6 @@ func ParseEnvironmentVariable() Definition {
 
 func ParseReference() Definition {
 	for scanner.Current() != -1 && !unicode.IsSpace(scanner.Current()) && !reservedCharacters[scanner.Current()] {
-		// TODO: Only allow non-control characters
 		stringBuilder.WriteRune(scanner.Current())
 		scanner.Move()
 	}
@@ -169,3 +173,39 @@ func ParseReference() Definition {
 
 	return result
 }
+
+func ParseMap() Definition {
+	scanner.Move()
+
+	definitions := make(map[string][]Definition)
+	for scanner.Current() != -1 && scanner.Current() != '}' {
+		scanner.SkipWhitespace()
+
+		key := ParseReference()
+
+		if scanner.SkipWhitespace() != ':' {
+			panic("No define symbol after map")
+		}
+		scanner.Move()
+
+		values := make([]Definition, 0)
+		for scanner.SkipWhitespace() != -1 && scanner.Current() != ',' && scanner.Current() != '}' {
+			values = append(values, ParseInner())
+		}
+
+		definitions[key.String()] = values
+	}
+	scanner.Move()
+
+	result := Map{
+		Definitions: definitions,
+	}
+
+	return result
+}
+
+// type ParseError struct {
+// 	message string
+// 	column  int
+// 	row     int
+// }
