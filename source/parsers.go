@@ -9,8 +9,6 @@ var reservedCharacters = map[rune]bool{
 	':': true,
 	'"': true,
 	'`': true,
-	'{': true,
-	'}': true,
 }
 
 func ParseAndExecute() {
@@ -38,11 +36,9 @@ func ParseInner() Definition {
 	case nextChar == '"':
 		return ParseString()
 	case nextChar == '`':
-		return ParseInvoke()
+		return ParseScript()
 	case nextChar == '$':
 		return ParseEnvironmentVariable()
-	case nextChar == '{':
-		return ParseMap()
 	default:
 		return ParseReference()
 	}
@@ -83,7 +79,7 @@ func ParseWord() Definition {
 func ParseString() Definition {
 	scanner.Move() // move past "
 
-	for scanner.Current() != -1 && (scanner.Current() != '"' || scanner.Recale() == '\\') {
+	for scanner.Current() != -1 && (scanner.Current() != '"' || scanner.Recall() == '\\') {
 		stringBuilder.WriteRune(scanner.Current())
 		scanner.Move()
 	}
@@ -97,12 +93,12 @@ func ParseString() Definition {
 	return result
 }
 
-func ParseInvoke() Definition {
+func ParseScript() Definition {
 	scanner.Move()
 
 	// TODO: format should be a split of strings and the arguments associated
 	parts := make([]string, 0)
-	for scanner.Current() != -1 && (scanner.Current() != '`' || scanner.Recale() == '\\') {
+	for scanner.Current() != -1 && (scanner.Current() != '`' || scanner.Recall() == '\\') {
 		if scanner.Current() == '+' {
 			parts = append(parts, stringBuilder.String())
 			stringBuilder.Reset()
@@ -173,39 +169,3 @@ func ParseReference() Definition {
 
 	return result
 }
-
-func ParseMap() Definition {
-	scanner.Move()
-
-	definitions := make(map[string][]Definition)
-	for scanner.Current() != -1 && scanner.Current() != '}' {
-		scanner.SkipWhitespace()
-
-		key := ParseReference()
-
-		if scanner.SkipWhitespace() != ':' {
-			panic("No define symbol after map")
-		}
-		scanner.Move()
-
-		values := make([]Definition, 0)
-		for scanner.SkipWhitespace() != -1 && scanner.Current() != ',' && scanner.Current() != '}' {
-			values = append(values, ParseInner())
-		}
-
-		definitions[key.String()] = values
-	}
-	scanner.Move()
-
-	result := Map{
-		Definitions: definitions,
-	}
-
-	return result
-}
-
-// type ParseError struct {
-// 	message string
-// 	column  int
-// 	row     int
-// }

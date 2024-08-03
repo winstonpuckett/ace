@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -22,7 +23,7 @@ func (s String) Run() {
 }
 
 func (s String) String() string {
-	return string(s.value)
+	return s.value
 }
 
 type Script struct {
@@ -50,7 +51,13 @@ func (s Script) Run() {
 		}
 	}
 
-	cmd := exec.Command("sh", "-c", stringBuilder.String())
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd", "/C", stringBuilder.String())
+	} else {
+		cmd = exec.Command("sh", "-c", stringBuilder.String())
+	}
+
 	stringBuilder.Reset()
 
 	output, err := cmd.Output()
@@ -80,28 +87,6 @@ func (s Script) String() string {
 	return fmt.Sprintf("Script: %s", strings.Join(parts, ", "))
 }
 
-type Part interface {
-	Flatten(context *[]string) string
-}
-
-type StringPart struct{ value string }
-
-func (p StringPart) Flatten(context *[]string) string {
-	return p.value
-}
-
-type MappedPart struct {
-	stackDepth int
-	references []string
-}
-
-func (p MappedPart) Flatten(context *[]Definition) string {
-	for p.stackDepth > len(*context) {
-		context = append(*context, myStack.Pop().(Definition).String())
-	}
-	return p.value
-}
-
 type Word struct {
 	Key         string
 	Definitions []Definition
@@ -125,7 +110,6 @@ type EnvironmentVariable struct {
 }
 
 func (e EnvironmentVariable) Run() {
-	// TODO: throw if blank
 	variable := os.Getenv(e.Name)
 	myStack.Push(variable)
 }
@@ -152,30 +136,4 @@ func (r Reference) Run() {
 
 func (r Reference) String() string {
 	return fmt.Sprintf("Reference: %s", string(r.Name))
-}
-
-type Map struct {
-	Definitions map[string][]Definition
-}
-
-func (m Map) Run() {
-	myStack.Push(m)
-}
-
-func (m Map) String() string {
-	// TODO: Replace with stringbuilder
-	s := "{"
-	for key, values := range m.Definitions {
-		s += key
-		s += ":"
-
-		for _, value := range values {
-			s += " "
-			s += value.String()
-		}
-
-		s += ","
-	}
-	s += "}"
-	return fmt.Sprintf("Map: %s", s)
 }

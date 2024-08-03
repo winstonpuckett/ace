@@ -7,7 +7,7 @@ type Scanner interface {
 	Move() rune
 	Peek() rune
 	PeekTwo() rune
-	Recale() rune // looks back
+	Recall() rune // looks back
 	SkipWhitespace() rune
 }
 
@@ -52,7 +52,7 @@ func (s *StringScanner) PeekTwo() rune {
 	}
 	return rune(s.source[s.position+2])
 }
-func (s *StringScanner) Recale() rune {
+func (s *StringScanner) Recall() rune {
 	if s.position < 1 {
 		return -1
 	}
