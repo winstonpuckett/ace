@@ -12,7 +12,7 @@ Demonstrating everything in the language:
 
 :printTwo `echo +1 +2`
 
-helloMessage user print
+helloMessage user printTwo
 ```
 
 More simply:
